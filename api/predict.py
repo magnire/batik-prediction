@@ -27,25 +27,31 @@ def preprocess_image(image_bytes):
     return img_array
 
 def handler(request):
-    """
-    Vercel expects the function to return a dict/string that is sent as the HTTP response.
-    """
     if request.method != "POST":
-        return json.dumps({"error": "Only POST method is supported."})
-
+        return {
+            "statusCode": 405,
+            "body": json.dumps({"error": "Only POST method is supported."})
+        }
     try:
-        # Get the uploaded image from the request. Vercel passes file content in the request body.
-        image_bytes = request.body  # Adjust depending on your framework's API
+        # Get the uploaded image from the request body
+        image_bytes = request.body  # Ensure this returns the file bytes as expected
         processed_image = preprocess_image(image_bytes)
         predictions = model.predict(processed_image)
         predicted_idx = np.argmax(predictions[0])
         predicted_class = CLASS_LABELS[predicted_idx]
         confidence = float(predictions[0][predicted_idx]) * 100
     except Exception as e:
-        return json.dumps({"error": str(e)})
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": str(e)})
+        }
 
     response = {
         "predicted_class": predicted_class,
         "confidence": confidence
     }
-    return json.dumps(response)
+    return {
+         "statusCode": 200,
+         "body": json.dumps(response)
+    }
+
