@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Batik Prediction</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 40px; 
+      background-color: #f9f9f9; 
+      text-align: center; 
+    }
+    h1 { color: #333; }
+    input[type="file"] {
+      margin: 20px 0;
+      padding: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #005500;
+    }
+  </style>
+</head>
+<body>
+  <h1>Batik Image Prediction</h1>
+  <p>Select an image and click "Predict" to get your model's prediction.</p>
+  <input type="file" id="imageInput" accept="image/*">
+  <br>
+  <button id="predictButton">Predict</button>
+  <div id="result"></div>
+
+  <script>
+    const predictButton = document.getElementById('predictButton');
+    const imageInput = document.getElementById('imageInput');
+    const resultDiv = document.getElementById('result');
+
+    predictButton.addEventListener('click', async () => {
+      if (!imageInput.files[0]) {
+        alert('Please select an image file.');
+        return;
+      }
+      const file = imageInput.files[0];
+
+      try {
+        // Option 1: Send the file directly as binary data.
+        const response = await fetch('/api/predict', {
+          method: 'POST',
+          body: file
+        });
+        if (response.ok) {
+          const data = await response.json();
+          resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
+        } else {
+          resultDiv.innerText = "Error in prediction, please try again.";
+        }
+        
+        }
+    catch (error) {
+        console.error('Error:', error);
+    };
+        // Option 2: Alternatively, convert to an ArrayBuffer
+        /*
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const arrayBuffer = event.target.result;
+          const response = await fetch('/api/predict', {
+            method: 'POST',
+            body: arrayBuffer
+          });
+          if (response.ok) {
+            const data = await response.json();
+            resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
+          } else {
+            resultDiv.innerText = "Error in prediction, please try again.";
+          }
+        };
+        reader.readAsArrayBuffer(file);
+        */
+});
