@@ -28,57 +28,37 @@
   </style>
 </head>
 <body>
-  <h1>Batik Image Prediction</h1>
-  <p>Select an image and click "Predict" to get your model's prediction.</p>
-  <input type="file" id="imageInput" accept="image/*">
-  <br>
-  <button id="predictButton">Predict</button>
-  <div id="result"></div>
+    <h1>Batik Motif Predictor</h1>
+    <input type="file" id="file-input" accept="image/*" />
+    <button id="predict-btn">Predict</button>
 
-  <script>
-    const predictButton = document.getElementById('predictButton');
-    const imageInput = document.getElementById('imageInput');
-    const resultDiv = document.getElementById('result');
+    <h2>Result:</h2>
+    <pre id="result">—</pre>
 
-    predictButton.addEventListener('click', async () => {
-      if (!imageInput.files[0]) {
-        alert('Please select an image file.');
-        return;
-      }
-      
-      // Show loading state
-      predictButton.disabled = true;
-      resultDiv.innerText = 'Processing...';
-      
-      const formData = new FormData();
-      formData.append('image', imageInput.files[0]);
-
-      try {
-        const response = await fetch('predict', {
-          method: 'POST',
-          body: formData
-        });
-        
-        // Log the raw response for debugging
-        console.log('Response status:', response.status);
-        const responseText = await response.text();
-        console.log('Raw response:', responseText);
-        
-        // Parse the response as JSON
-        const data = JSON.parse(responseText);
-        
-        if (!response.ok) {
-          throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    <script>
+      document.getElementById('predict-btn').addEventListener('click', async () => {
+        const input = document.getElementById('file-input');
+        if (!input.files.length) {
+          alert('Please select an image first.');
+          return;
         }
-        
-        resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
-      } catch (error) {
-        console.error('Error:', error);
-        resultDiv.innerText = `Error: ${error.message}`;
-      } finally {
-        predictButton.disabled = false;
-      }
-    });
-  </script>
-</body>
+
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+
+        try {
+          const res = await fetch('/api/predict', {
+            method: 'POST',
+            body: formData
+          });
+          if (!res.ok) throw new Error(`Server error: ${res.status}`);
+          const data = await res.json();
+          document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+          console.error(err);
+          document.getElementById('result').textContent = 'Error: ' + err.message;
+        }
+      });
+    </script>
+  </body>
 </html>

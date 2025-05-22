@@ -123,43 +123,101 @@
 #     logger.info("Starting Flask application")
 #     app.run(debug=True)
 
-from flask import Flask, request, jsonify
-from tflite_runtime.interpreter import Interpreter
+#########################
+
+# from flask import Flask, request, jsonify
+# from tflite_runtime.interpreter import Interpreter
+# from PIL import Image
+# import numpy as np
+# import os, logging
+
+# app = Flask(__name__)
+
+# # Load TFLite interpreter only
+# MODEL_PATH = os.path.join('model', 'batik.tflite')
+# interpreter = Interpreter(model_path=MODEL_PATH)
+# interpreter.allocate_tensors()
+# input_details  = interpreter.get_input_details()
+# output_details = interpreter.get_output_details()
+
+# @app.route('/predict', methods=['POST'])
+# def predict():
+#     if 'image' not in request.files:
+#         return jsonify({"error": "No image provided"}), 400
+
+#     # Preprocess
+#     img = Image.open(request.files['image'].stream).convert('RGB')
+#     img = img.resize((224, 224))
+#     x   = np.expand_dims(np.array(img, dtype=np.float32) / 255.0, 0)
+
+#     # Run inference
+#     interpreter.set_tensor(input_details[0]['index'], x)
+#     interpreter.invoke()
+#     output_data = interpreter.get_tensor(output_details[0]['index'])[0]
+#     idx         = int(np.argmax(output_data))
+#     labels      = ["bokor-kencono", "truntum"]
+#     confidence  = float(output_data[idx]) * 100
+
+#     return jsonify({
+#       "predicted_class": labels[idx],
+#       "confidence":     confidence
+#     })
+
+# if __name__ == '__main__':
+#     app.run()
+
+# api/predict.py
+
+from http.server import BaseHTTPRequestHandler
+import cgi, io, json, os
 from PIL import Image
+from tflite_runtime.interpreter import Interpreter
 import numpy as np
-import os, logging
 
-app = Flask(__name__)
-
-# Load TFLite interpreter only
+# ---- GLOBAL: load your TFLite model once ----
 MODEL_PATH = os.path.join('model', 'batik.tflite')
 interpreter = Interpreter(model_path=MODEL_PATH)
 interpreter.allocate_tensors()
-input_details  = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+_input_details  = interpreter.get_input_details()
+_output_details = interpreter.get_output_details()
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'image' not in request.files:
-        return jsonify({"error": "No image provided"}), 400
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        # 1) Parse multipart/form-data
+        ctype, pdict = cgi.parse_header(self.headers.get('Content-Type'))
+        if ctype != 'multipart/form-data':
+            self.send_error(400, "Expected multipart/form-data")
+            return
 
-    # Preprocess
-    img = Image.open(request.files['image'].stream).convert('RGB')
-    img = img.resize((224, 224))
-    x   = np.expand_dims(np.array(img, dtype=np.float32) / 255.0, 0)
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={'REQUEST_METHOD':'POST'},
+            keep_blank_values=True
+        )
+        if 'image' not in form:
+            self.send_error(400, "Missing 'image' field")
+            return
 
-    # Run inference
-    interpreter.set_tensor(input_details[0]['index'], x)
-    interpreter.invoke()
-    output_data = interpreter.get_tensor(output_details[0]['index'])[0]
-    idx         = int(np.argmax(output_data))
-    labels      = ["bokor-kencono", "truntum"]
-    confidence  = float(output_data[idx]) * 100
+        fileitem = form['image']
+        image = Image.open(io.BytesIO(fileitem.file.read())).convert('RGB')
+        image = image.resize((224, 224))
+        x = np.expand_dims(np.array(image, dtype=np.float32) / 255.0, 0)
 
-    return jsonify({
-      "predicted_class": labels[idx],
-      "confidence":     confidence
-    })
+        # 2) Inference
+        interpreter.set_tensor(_input_details[0]['index'], x)
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(_output_details[0]['index'])[0]
+        idx        = int(np.argmax(output_data))
+        labels     = ["bokor-kencono", "truntum"]
+        confidence = float(output_data[idx]) * 100
 
-if __name__ == '__main__':
-    app.run()
+        # 3) Send JSON
+        result = {
+            "predicted_class": labels[idx],
+            "confidence":     confidence
+        }
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(result).encode('utf-8'))
