@@ -46,24 +46,37 @@
         return;
       }
       
+      // Show loading state
+      predictButton.disabled = true;
+      resultDiv.innerText = 'Processing...';
+      
       const formData = new FormData();
       formData.append('image', imageInput.files[0]);
 
       try {
-        const response = await fetch('predict', {  // Remove /api/
+        const response = await fetch('predict', {
           method: 'POST',
           body: formData
         });
         
+        // Log the raw response for debugging
+        console.log('Response status:', response.status);
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+        
+        // Parse the response as JSON
+        const data = JSON.parse(responseText);
+        
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.json();
         resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
       } catch (error) {
         console.error('Error:', error);
         resultDiv.innerText = `Error: ${error.message}`;
+      } finally {
+        predictButton.disabled = false;
       }
     });
   </script>
