@@ -45,41 +45,27 @@
         alert('Please select an image file.');
         return;
       }
-      const file = imageInput.files[0];
+      
+      const formData = new FormData();
+      formData.append('image', imageInput.files[0]);
 
       try {
-        // Option 1: Send the file directly as binary data.
-        const response = await fetch('/api/predict', {
+        const response = await fetch('predict', {  // Remove /api/
           method: 'POST',
-          body: file
+          body: formData
         });
-        if (response.ok) {
-          const data = await response.json();
-          resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
-        } else {
-          resultDiv.innerText = "Error in prediction, please try again.";
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        }
-    catch (error) {
+        const data = await response.json();
+        resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
+      } catch (error) {
         console.error('Error:', error);
-    };
-        // Option 2: Alternatively, convert to an ArrayBuffer
-        /*
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const arrayBuffer = event.target.result;
-          const response = await fetch('/api/predict', {
-            method: 'POST',
-            body: arrayBuffer
-          });
-          if (response.ok) {
-            const data = await response.json();
-            resultDiv.innerText = `Prediction: ${data.predicted_class} (${data.confidence.toFixed(2)}% confidence)`;
-          } else {
-            resultDiv.innerText = "Error in prediction, please try again.";
-          }
-        };
-        reader.readAsArrayBuffer(file);
-        */
-});
+        resultDiv.innerText = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
