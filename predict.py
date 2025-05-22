@@ -5,6 +5,7 @@ import numpy as np
 import os
 import sys
 import logging
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,11 +14,21 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 # Load model with error handling
-MODEL_PATH = 'model/batik.h5'
+MODEL_PATH = os.path.join('model' if os.path.exists('model') else '/tmp', 'batik.h5')
+MODEL_URL = 'https://drive.usercontent.google.com/u/0/uc?id=1Gd0k20F2_sTr1sNu96nCfZqwiwcoq5a3&export=download'
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        response = requests.get(MODEL_URL)
+        response.raise_for_status()
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        with open(MODEL_PATH, 'wb') as f:
+            f.write(response.content)
+
+# Update model loading code
 try:
-    logger.info(f"Loading model from {MODEL_PATH}")
+    download_model()
     model = load_model(MODEL_PATH)
-    logger.info("Model loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load model: {str(e)}")
     model = None
