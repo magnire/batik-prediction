@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from tensorflow.keras.models import load_model
 from PIL import Image
+from tflite_runtime.interpreter import Interpreter  # Change import
+import numpy as np
 import numpy as np
 import os
 import sys
@@ -14,8 +16,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 # Load model with error handling
-MODEL_PATH = os.path.join('model' if os.path.exists('model') else '/tmp', 'batik.h5')
-MODEL_URL = 'https://drive.usercontent.google.com/u/0/uc?id=1Gd0k20F2_sTr1sNu96nCfZqwiwcoq5a3&export=download'
+MODEL_PATH = os.path.join('model' if os.path.exists('model') else '/tmp', 'batik.tflite')
+try:
+    interpreter = Interpreter(model_path=MODEL_PATH)
+    interpreter.allocate_tensors()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+except Exception as e:
+    logger.error(f"Failed to load model: {str(e)}")
+    interpreter = None
+    
+MODEL_URL = 'https://drive.usercontent.google.com/u/0/uc?id=1zt9w4wg3_0TppOqA3WEfKBE9Zy2MSNBx&export=download'
 
 def download_model():
     if not os.path.exists(MODEL_PATH):
@@ -43,8 +54,11 @@ def predict():
     logger.info("Predict route accessed")
     try:
         # Check if model is loaded
-        if model is None:
+        if interpreter is None:
             raise Exception("Model not loaded")
+        
+        # if model is None:
+        #     raise Exception("Model not loaded")
 
         # Verify request contains file
         if 'image' not in request.files:
@@ -59,11 +73,15 @@ def predict():
         image = Image.open(file.stream).convert('RGB')
         logger.info(f"Image opened, size: {image.size}")
         
-        # Preprocess the image
-        image = image.resize((224, 224))
-        img_array = np.array(image) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-        logger.info(f"Preprocessed image shape: {img_array.shape}")
+         # Preprocess image
+        img_array = np.array(image.resize((224, 224))) / 255.0
+        img_array = np.expand_dims(img_array, axis=0).astype(np.float32)
+   
+        # # Preprocess the image
+        # image = image.resize((224, 224))
+        # img_array = np.array(image) / 255.0
+        # img_array = np.expand_dims(img_array, axis=0)
+        # logger.info(f"Preprocessed image shape: {img_array.shape}")
         
         # Make prediction
         logger.info("Making prediction...")
