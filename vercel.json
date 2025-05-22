@@ -7,5 +7,10 @@
   "routes": [
     { "src": "/", "dest": "/index.html" },
     { "src": "/predict", "dest": "/predict.py" }
-  ]
+  ],
+    "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.9"
+    }
+  }
 }
