@@ -1,16 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "predict.py", "use": "@vercel/python" },
-    { "src": "*.html", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/predict", "dest": "/predict.py" }
-  ],
-    "functions": {
+  "functions": {
     "api/**/*.py": {
       "runtime": "python3.9"
     }
-  }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
